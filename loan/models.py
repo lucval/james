@@ -63,7 +63,10 @@ class User(db.Model):
     @validates('email')
     def _validate_input(self, key, email):
         if not email:
-            raise BadRequest("'{}' field required".format(key))
+            raise BadRequest("'email' field required")
+
+        if '@' not in email:
+            raise BadRequest("Invalid email address provided")
 
         return email
 
