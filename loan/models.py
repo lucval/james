@@ -14,7 +14,7 @@ Version: 0.1.0
 Python Version 2.7
 """
 
-import math
+import math, uuid
 from dateutil import parser
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError
@@ -40,7 +40,7 @@ class Conflict(Exception):
 class Loan(db.Model):
     __tablename__ = 'loans'
 
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    id = db.Column(db.String(36), primary_key=True, autoincrement=False)
     amount = db.Column(db.Integer, nullable=False)
     term = db.Column(db.Integer, nullable=False)
     rate = db.Column(db.Float, nullable=False)
@@ -99,6 +99,9 @@ class Loan(db.Model):
 
         :raise Conflict: when a loan record could not be created due to a database integrity error.
         """
+        # Generate loan ID
+        self.loan_id = uuid.uuid4()
+
         try:
             db.session.add(self)
             db.session.commit()
@@ -121,7 +124,7 @@ class Payment(db.Model):
     date = db.Column(db.DateTime, nullable=False)
     amount = db.Column(db.Float, nullable=False)
     payment = db.Column(db.Enum('made', 'missed'), nullable=False)
-    loan_id = db.Column(db.Integer, db.ForeignKey(Loan.id))
+    loan_id = db.Column(db.String(36), db.ForeignKey(Loan.id))
 
     def __repr__(self):
         return "<Payment {} {}: {}$ on date {}>".format(self.id, self.payment, self.amount, self.date)
