@@ -138,5 +138,23 @@ def handle_error(error):
 @app.cli.command('initdb')
 def initdb_command():
     """Initializes the database."""
-    db.create_all()
+
+    is_database_up = False
+    for _ in range(3):
+        # Three attempts before giving up
+        try:
+            # Initialize database
+            db.create_all()
+            is_database_up = True
+            break
+        except Exception:
+            time.sleep(5)
+
+    if not is_database_up:
+        raise AssertionError("Database is not up")
+
     app.logger.info('Database successfully initialized')
+
+    for row in csv.DictReader(open("/usr/local/share/users.csv", 'r')):
+        User(email=row['email']).add(row['password'])
+        app.logger.info("User '{}' added to database".format(row['email']))
