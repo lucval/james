@@ -113,20 +113,21 @@ def handle_error(error):
     # Parse message
     message = [str(x) for x in error.args]
 
-    # Retrieve status code
-    if 'status_code' in error:
+    try:
+        # Retrieve status code
         status_code = error.status_code
-    else:
+        type = error.__class__.__name__
+    except:
         # Internal error
         app.logger.error(error)
         message = "Internal server error, please contact Group Captain Lionel Mandrake."
         status_code = 500
+        type = "Internal"
 
     # Create error response
     response = {
-        'success': False,
         'error': {
-            'type': error.__class__.__name__,
+            'type': type,
             'message': message
         }
     }
