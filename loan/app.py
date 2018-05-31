@@ -14,12 +14,13 @@ Version: 0.1.0
 Python Version 2.7
 """
 
-import time
+import csv, logging, time
 from flask import Flask, request, jsonify
 from functools import wraps
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://loan-db:loan-db@loan-db:3306/loan_db'
+app.logger.setLevel(logging.INFO)
 
 from loan.models import db, Loan, Payment, User, BadRequest
 
