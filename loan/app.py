@@ -14,14 +14,43 @@ Version: 0.1.0
 Python Version 2.7
 """
 
+import time
 from flask import Flask, request, jsonify
+from functools import wraps
 
 app = Flask(__name__)
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://loan-db:loan-db@localhost/loan_db'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://loan-db:loan-db@loan-db:3306/loan_db'
 
-from loan.models import db, Loan, Payment
+from loan.models import db, Loan, Payment, User, BadRequest
+
+def authenticate(f):
+    """Authentication wrapper."""
+
+    @wraps(f)
+    def decorated_function(*args, **kwargs):
+        jwt_token = request.headers.get('authorization', None)
+        User().authenticate(jwt_token)
+        return f(*args, **kwargs)
+    return decorated_function
+
+@app.route("/login", methods=['POST'])
+def login():
+    """Endpoint to login to the application.
+
+    :return: a JSON object containing the JWT to be used for further actions.
+    """
+    # Parse payload
+    payload = request.get_json(force=True, silent=True)
+    if ('email' not in payload or 'password' not in payload):
+        raise BadRequest("e-mail address and password required")
+
+    # Create JWT token
+    jwt_token = User().login(payload['email'], payload['password'])
+
+    return jsonify({"jwt_token": jwt_token}), 200
 
 @app.route("/loans", methods=['POST'])
+@authenticate
 def create_loan():
     """Endpoint to create a new load record.
 
@@ -37,6 +66,7 @@ def create_loan():
     return jsonify({"loan_id": loan.id, "installment": loan.calculate_installment()}), 200
 
 @app.route("/loans/<loan_id>/payments", methods=['POST'])
+@authenticate
 def create_payment(loan_id):
     """Endpoint to create a new payment record.
 
@@ -53,6 +83,7 @@ def create_payment(loan_id):
     return '', 204
 
 @app.route("/loans/<loan_id>/balance", methods=['GET'])
+@authenticate
 def fetch_balance(loan_id):
     """Retrieve outstanding debt (loan balance) at some point in time.
 
