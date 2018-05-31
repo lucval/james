@@ -17,3 +17,16 @@ services:
             published: 13306
             protocol: tcp
             mode: host
+
+    loan-app:
+        image: james-loan:latest
+        command: bash -c "flask initdb && flask run --host=0.0.0.0"
+        environment:
+          FLASK_APP: /loan/app.py
+        ports:
+          - target: 5000
+            published: 15000
+            protocol: tcp
+            mode: host
+        depends_on:
+          - "loan-db"
