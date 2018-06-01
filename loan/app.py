@@ -113,6 +113,7 @@ def handle_error(error):
     """
     # Parse message
     message = [str(x) for x in error.args]
+    app.logger.error(message)
 
     try:
         # Retrieve status code
@@ -120,7 +121,6 @@ def handle_error(error):
         type = error.__class__.__name__
     except:
         # Internal error
-        app.logger.error(error)
         message = "Internal server error, please contact Group Captain Lionel Mandrake."
         status_code = 500
         type = "Internal"
@@ -157,4 +157,3 @@ def initdb_command():
 
     for row in csv.DictReader(open("/usr/local/share/users.csv", 'r')):
         User(email=row['email']).add(row['password'])
-        app.logger.info("User '{}' added to database".format(row['email']))

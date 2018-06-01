@@ -95,20 +95,34 @@ class User(db.Model):
         }
         jwt_token = jwt.encode(payload, JWT_SECRET, JWT_ALGORITHM)
 
+        app.logger.info("User '{}' successfully logged in".format(email))
+        app.logger.debug("Token: {})".format(jwt_token))
+
         return jwt_token.decode('utf-8')
 
     def authenticate(self, jwt_token):
+        """
+
+        :param jwt_token:
+        :return:
+        """
         if not jwt_token:
             raise Forbidden("Access denied")
+
+        app.logger.debug("Authenticate JWT token".format(jwt_token))
 
         try:
             payload = jwt.decode(jwt_token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
         except (jwt.DecodeError, jwt.ExpiredSignatureError):
             raise BadRequest("Token is invalid")
 
+        app.logger.debug("Authenticating user '{}'".format(payload['user_id']))
+
         user = User.query.get(payload['user_id'])
         if not user:
            raise Unauthorized("User is not authorized")
+
+        app.logger.info("User '{}' successfully authenticated".format(payload['user_id']))
 
     def add(self, password):
         """Add a user record (if not yet existing)."""
@@ -121,6 +135,7 @@ class User(db.Model):
         try:
             db.session.add(self)
             db.session.commit()
+            app.logger.info("User '{}' successfully added".format(self.email))
         except IntegrityError as e:
             db.session.rollback()
 
@@ -191,6 +206,7 @@ class Loan(db.Model):
         try:
             db.session.add(self)
             db.session.commit()
+            app.logger.info("Loan '{}' successfully added".format(self.id))
         except IntegrityError as e:
             db.session.rollback()
             raise BadRequest("Invalid loan record provided")
@@ -259,6 +275,7 @@ class Payment(db.Model):
         try:
             db.session.add(self)
             db.session.commit()
+            app.logger.info("Payment for loan '{}' successfully added".format(self.loan_id))
         except IntegrityError as e:
             db.session.rollback()
             raise BadRequest("Invalid payment record provided")
