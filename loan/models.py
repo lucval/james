@@ -92,7 +92,7 @@ class User(db.Model):
         """Login a user.
 
         :return: a signed JWT if user has granted access.
-        :raise Forbidden: when user has no granted access.
+        :raise BadRequest: when user has no granted access.
         """
         try:
             # Lookup user
@@ -119,10 +119,12 @@ class User(db.Model):
         return jwt_token.decode('utf-8')
 
     def authenticate(self, jwt_token):
-        """
+        """Authenticate a user by validating the provided JWT and fetching the requesting user.
 
-        :param jwt_token:
-        :return:
+        :param jwt_token: The validation JWT.
+        :raise Forbidden: When no token is provided.
+        :raise BadRequest: When the JWT is invalid or corrupted.
+        :raise Unauthorized: When user is not authorized.
         """
         if not jwt_token:
             raise Forbidden("Access denied")
@@ -143,7 +145,7 @@ class User(db.Model):
         if not user:
            raise Unauthorized("User is not authorized")
 
-        app.logger.info("User '{}' successfully authenticated".format(payload['user_id']))
+        app.logger.info("User '{}' successfully authenticated".format(user.email))
 
     def add(self, password):
         """Add a user record (if not yet existing)."""
@@ -209,7 +211,7 @@ class Loan(db.Model):
         """
         loan = self.query.get(loan_id)
         if not loan:
-            raise NotFound("Loan {} not found".format(loan_id))
+            raise NotFound("Loan '{}' not found".format(loan_id))
 
         return loan
 
