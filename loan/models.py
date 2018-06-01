@@ -47,6 +47,24 @@ class NotFound(Exception):
 class Conflict(Exception):
     status_code = 409
 
+### Utility functions ###
+
+def format_date(date):
+    """Format a date field in a datetime aware object.
+
+    :param date: The date input field (must conform to ISO-8601 standard format).
+    :return: A datetime aware object.
+    :raise BadRequest: When the provided date does not conform to ISO-8601 standard format
+    """
+    try:
+        dt = parser.parse(date)
+        if (dt.tzinfo is None or dt.tzinfo.utcoffset(dt) is None):
+            # Date is naive/unaware:
+            dt = dt.replace(tzinfo=tz.tzlocal())
+        return dt
+    except ValueError as e:
+        raise BadRequest("Invalid 'date' provided, please use ISO-8601 standard")
+
 ### DB models ###
 
 class User(db.Model):
@@ -180,10 +198,7 @@ class Loan(db.Model):
         if not date:
             raise BadRequest("'date' field required")
 
-        try:
-            return parser.parse(date)
-        except ValueError as e:
-            raise BadRequest("Invalid 'date' provided, please use ISO-8601 standard")
+        return format_date(date)
 
     def get(self, loan_id):
         """Fetch a loan record.
@@ -239,10 +254,7 @@ class Payment(db.Model):
         if not date:
             raise BadRequest("'date' field required")
 
-        try:
-            return parser.parse(date)
-        except ValueError as e:
-            raise BadRequest("Invalid 'date' provided, please use ISO-8601 standard")
+        return format_date(date)
 
     @validates('amount')
     def _validate_amount(self, key, amount):
