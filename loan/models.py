@@ -18,7 +18,7 @@ import bcrypt, jwt, math, uuid
 from datetime import datetime, timedelta
 from dateutil import parser, tz
 from flask_sqlalchemy import SQLAlchemy
-from sqlalchemy.exc import IntegrityError
+from sqlalchemy.exc import IntegrityError, OperationalError
 from sqlalchemy.orm import validates
 from sqlalchemy.orm.exc import NoResultFound
 
@@ -159,7 +159,7 @@ class User(db.Model):
             db.session.add(self)
             db.session.commit()
             app.logger.info("User '{}' successfully added".format(self.email))
-        except IntegrityError as e:
+        except (OperationalError, IntegrityError) as e:
             db.session.rollback()
 
 class Loan(db.Model):
@@ -218,7 +218,7 @@ class Loan(db.Model):
     def create(self):
         """Add a loan record.
 
-        :raise BadRequest: when a loan record could not be created due to a database integrity error.
+        :raise BadRequest: when a loan record could not be created due to a database integrity or operational error.
         """
         # Generate loan ID
         self.id = str(uuid.uuid4())
@@ -227,7 +227,7 @@ class Loan(db.Model):
             db.session.add(self)
             db.session.commit()
             app.logger.info("Loan '{}' successfully added".format(self.id))
-        except IntegrityError as e:
+        except (OperationalError, IntegrityError) as e:
             db.session.rollback()
             raise BadRequest("Invalid loan record provided")
 
@@ -282,7 +282,7 @@ class Payment(db.Model):
         """Add a payment record.
 
         :raise BadRequest: when payment's date is prior to loan's initial date or when a payment record could not be
-        created due to a database integrity error.
+        created due to a database integrity or operational error.
         """
         loan = Loan().get(self.loan_id)
 
@@ -293,7 +293,7 @@ class Payment(db.Model):
             db.session.add(self)
             db.session.commit()
             app.logger.info("Payment for loan '{}' successfully added".format(self.loan_id))
-        except IntegrityError as e:
+        except (OperationalError, IntegrityError) as e:
             db.session.rollback()
             raise BadRequest("Invalid payment record provided")
 
