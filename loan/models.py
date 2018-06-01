@@ -116,6 +116,9 @@ class User(db.Model):
         except (jwt.DecodeError, jwt.ExpiredSignatureError):
             raise BadRequest("Token is invalid")
 
+        if (not payload or 'user_id' not in payload):
+            raise BadRequest("Token is corrupted")
+
         app.logger.debug("Authenticating user '{}'".format(payload['user_id']))
 
         user = User.query.get(payload['user_id'])

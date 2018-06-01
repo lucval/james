@@ -88,6 +88,18 @@ class UserAuthenticateTestCase(TestCase):
 
 		self.assertEquals(context.exception.message, "Token is invalid")
 
+	def test_user_authenticate_corrupted_token_failure(self):
+		payload = {
+			'exp': datetime.utcnow() + timedelta(seconds=models.JWT_EXP_DELTA_SECONDS)
+		}
+		jwt_token = jwt.encode(payload, models.JWT_SECRET, models.JWT_ALGORITHM)
+
+		with self.assertRaises(models.BadRequest) as context:
+			# Authenticate
+			models.User().authenticate(jwt_token)
+
+		self.assertEquals(context.exception.message, "Token is corrupted")
+
 	def test_user_authenticate_unauthorized_failure(self):
 		payload = {
 			'user_id': "this-is-a-test-user-id",
