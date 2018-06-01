@@ -155,7 +155,7 @@ class Loan(db.Model):
         if (not isinstance(rate, float) or rate <= 0 or rate > 1):
             raise BadRequest("'rate' must be a positive percentage")
 
-        return rate
+        return round(rate, 2)
 
     @validates('date')
     def _validate_date(self, key, date):
@@ -201,7 +201,7 @@ class Loan(db.Model):
         :return: the monthly loan payment.
         """
         r = self.rate / 12
-        return (r + r / (math.pow((1 + r), self.term) - 1)) * self.amount
+        return round((r + r / (math.pow((1 + r), self.term) - 1)) * self.amount, 2)
 
 class Payment(db.Model):
     __tablename__ = 'payments'
@@ -233,7 +233,7 @@ class Payment(db.Model):
         if (not isinstance(amount, float) or amount <= 0):
             raise BadRequest("'amount' must be a positive value")
 
-        return amount
+        return round(amount, 2)
 
     @validates('payment')
     def _validate_rate(self, key, payment):
