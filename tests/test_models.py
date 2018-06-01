@@ -114,7 +114,7 @@ class UserTestCase(TestCase):
             # Authenticate
             User().authenticate(jwt_token)
 
-        self.assertEquals(context.exception.message, "Token is invalid")
+        self.assertEquals(context.exception.message, "Token is expired")
 
     def test_user_authenticate_corrupted_token_failure(self):
         payload = {

@@ -123,7 +123,7 @@ class User(db.Model):
 
         :param jwt_token: The validation JWT.
         :raise Forbidden: When no token is provided.
-        :raise BadRequest: When the JWT is invalid or corrupted.
+        :raise BadRequest: When the JWT is invalid, expired or corrupted.
         :raise Unauthorized: When user is not authorized.
         """
         if not jwt_token:
@@ -133,8 +133,10 @@ class User(db.Model):
 
         try:
             payload = jwt.decode(jwt_token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
-        except (jwt.DecodeError, jwt.ExpiredSignatureError):
+        except jwt.DecodeError:
             raise BadRequest("Token is invalid")
+        except jwt.ExpiredSignatureError:
+            raise BadRequest("Token is expired")
 
         if (not payload or 'user_id' not in payload):
             raise BadRequest("Token is corrupted")
