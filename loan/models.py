@@ -16,7 +16,7 @@ Python Version 2.7
 
 import bcrypt, jwt, math, uuid
 from datetime import datetime, timedelta
-from dateutil import parser
+from dateutil import parser, tz
 from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import validates
@@ -253,7 +253,7 @@ class Payment(db.Model):
         """
         loan = Loan().get(self.loan_id)
 
-        if loan.date > self.date:
+        if loan.date.replace(tzinfo=tz.tzlocal()) > self.date:
             raise BadRequest("Payment cannot be executed prior to loan date")
 
         try:
