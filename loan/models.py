@@ -80,7 +80,7 @@ class User(db.Model):
 
     @validates('email')
     def _validate_input(self, key, email):
-        if not email:
+        if email is None:
             raise BadRequest("'email' field required")
 
         if '@' not in email:
@@ -179,7 +179,7 @@ class Loan(db.Model):
 
     @validates('amount', 'term')
     def _validate_amount(self, key, value):
-        if not value:
+        if value is None:
             raise BadRequest("'{}' field required".format(key))
 
         if (not isinstance(value, int) or value <= 0):
@@ -189,7 +189,7 @@ class Loan(db.Model):
 
     @validates('rate')
     def _validate_rate(self, key, rate):
-        if not rate:
+        if rate is None:
             raise BadRequest("'rate' field required")
 
         if (not isinstance(rate, float) or rate <= 0 or rate > 1):
@@ -199,7 +199,7 @@ class Loan(db.Model):
 
     @validates('date')
     def _validate_date(self, key, date):
-        if not date:
+        if date is None:
             raise BadRequest("'date' field required")
 
         return format_date(date)
@@ -255,14 +255,14 @@ class Payment(db.Model):
 
     @validates('date')
     def _validate_date(self, key, date):
-        if not date:
+        if date is None:
             raise BadRequest("'date' field required")
 
         return format_date(date)
 
     @validates('amount')
     def _validate_amount(self, key, amount):
-        if not amount:
+        if amount is None:
             raise BadRequest("'amount' field required")
 
         if (not isinstance(amount, float) or amount <= 0):
@@ -272,7 +272,7 @@ class Payment(db.Model):
 
     @validates('payment')
     def _validate_rate(self, key, payment):
-        if not payment:
+        if payment is None:
             raise BadRequest("'payment' field required")
 
         if payment not in ['made', 'missed']:
