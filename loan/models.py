@@ -87,7 +87,7 @@ class User(db.Model):
 
         except NoResultFound:
             # A NotFound will be a security offence here as we are giving away which users exist in our DB.
-            raise BadRequest("User '{}' login failed".format(self.email))
+            raise BadRequest("User '{}' login failed".format(email))
 
         payload = {
             'user_id': user.id,
@@ -276,11 +276,12 @@ class Payment(db.Model):
 
         if until_date:
             try:
-                until_date = parser.parse(until_date)
+                parser.parse(until_date)
             except ValueError as e:
                 raise BadRequest("Invalid 'until_date' provided, please use ISO-8601 standard")
 
-            query.filter(Payment.date <= until_date)
+            query = query.filter(Payment.date <= until_date)
+
 
         if only_made:
             query = query.filter(Payment.payment == "made")
