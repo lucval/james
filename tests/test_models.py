@@ -11,110 +11,236 @@ Python Version 2.7
 """
 
 # Utils
-import jwt, unittest
+import bcrypt, jwt, unittest
 from datetime import datetime, timedelta
 
 from loan.app import app
-from loan import models
+from loan.models import db, Loan, Payment, User, BadRequest, NotFound, Unauthorized, \
+    JWT_SECRET, JWT_ALGORITHM, JWT_EXP_DELTA_SECONDS
 
+test_user = {
+    "email": "loan@james.test",
+    "password": "loanjamestest"
+}
+
+test_loan = {
+    "amount": 1000,
+    "term": 12,
+    "rate": 0.05,
+    "date": "2018-06-01T21:44:00",
+}
+
+test_payment = {
+    "payment": "made",
+    "date": "2018-06-01T21:56:00",
+    "amount": 85.60,
+}
 
 class TestCase(unittest.TestCase):
 
-	def setUp(self):
-		app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://///tmp/loan-test.db'
+    @classmethod
+    def setUpClass(cls):
+        app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite://///tmp/loan-test.db'
+        db.create_all()
 
-		models.db.create_all()
-		models.User(email="loan@james.test").add("loanjamestest")
+    @classmethod
+    def tearDownClass(cls):
+        db.session.remove()
+        db.drop_all()
 
-	def tearDown(self):
-		models.db.session.remove()
-		models.db.drop_all()
+class UserTestCase(TestCase):
 
-class UserLoginTestCase(TestCase):
+    def test_user_00_add_success(self):
+        # Add user
+        User(email=test_user['email']).add(test_user['password'])
 
-	def test_user_login_success(self):
-		# Login + JWT
-		jwt_token = models.User().login("loan@james.test", "loanjamestest")
+        # Fetch user
+        user = db.session.query(User).filter(User.email == test_user['email']).one()
 
-		# Decode JWT
-		payload = jwt.decode(jwt_token, models.JWT_SECRET, algorithms=[models.JWT_ALGORITHM])
+        # Has password password
+        h_password = bcrypt.hashpw(test_user['password'].encode('utf-8'), user.salt.encode('utf-8')).decode()
 
-		# Fetch user
-		user = models.User.query.get(payload['user_id'])
+        self.assertEquals(h_password, user.h_password)
 
-		# Asserts
-		self.assertIsNotNone(user)
-		self.assertEqual(user.email, "loan@james.test")
+    def test_user_login_success(self):
+        # Login + JWT
+        jwt_token = User().login("loan@james.test", "loanjamestest")
 
-	def test_user_login_failure(self):
-		with self.assertRaises(models.BadRequest) as context:
-			# wrong email
-			models.User().login("fakeloan@james.test", "loanjamestest")
+        # Decode JWT
+        payload = jwt.decode(jwt_token, JWT_SECRET, algorithms=[JWT_ALGORITHM])
 
-		self.assertEquals(context.exception.message, "User 'fakeloan@james.test' login failed")
+        # Fetch user
+        user = User.query.get(payload['user_id'])
 
-		with self.assertRaises(models.BadRequest) as context:
-			# wrong email
-			models.User().login("loan@james.test", "123456")
+        # Asserts
+        self.assertIsNotNone(user)
+        self.assertEqual(user.email, "loan@james.test")
 
-		self.assertEquals(context.exception.message, "User 'loan@james.test' login failed")
+    def test_user_login_failure(self):
+        with self.assertRaises(BadRequest) as context:
+            # wrong email
+            User().login("fakeloan@james.test", "loanjamestest")
 
-class UserAuthenticateTestCase(TestCase):
+        self.assertEquals(context.exception.message, "User 'fakeloan@james.test' login failed")
 
-	def test_user_authenticate_success(self):
-		# Login + JWT
-		jwt_token = models.User().login("loan@james.test", "loanjamestest")
+        with self.assertRaises(BadRequest) as context:
+            # wrong email
+            User().login("loan@james.test", "123456")
 
-		# Authenticate
-		models.User().authenticate(jwt_token)
+        self.assertEquals(context.exception.message, "User 'loan@james.test' login failed")
 
-	def test_user_authenticate_invalid_token_failure(self):
-		with self.assertRaises(models.BadRequest) as context:
-			# Authenticate
-			models.User().authenticate("thisisatesttokennotarealtokenbutitlookslikeitright")
+    def test_user_authenticate_success(self):
+        # Login + JWT
+        jwt_token = User().login("loan@james.test", "loanjamestest")
 
-		self.assertEquals(context.exception.message, "Token is invalid")
+        # Authenticate
+        User().authenticate(jwt_token)
 
-	def test_user_authenticate_expired_token_failure(self):
-		payload = {
-			'user_id': "this-is-a-test-user-id",
-			'exp': datetime.utcnow() - timedelta(seconds=models.JWT_EXP_DELTA_SECONDS)
-		}
-		jwt_token = jwt.encode(payload, models.JWT_SECRET, models.JWT_ALGORITHM)
+    def test_user_authenticate_invalid_token_failure(self):
+        with self.assertRaises(BadRequest) as context:
+            # Authenticate
+            User().authenticate("thisisatesttokennotarealtokenbutitlookslikeitright")
 
-		with self.assertRaises(models.BadRequest) as context:
-			# Authenticate
-			models.User().authenticate(jwt_token)
+        self.assertEquals(context.exception.message, "Token is invalid")
 
-		self.assertEquals(context.exception.message, "Token is invalid")
+    def test_user_authenticate_expired_token_failure(self):
+        payload = {
+            'user_id': "this-is-a-test-user-id",
+            'exp': datetime.utcnow() - timedelta(seconds=JWT_EXP_DELTA_SECONDS)
+        }
+        jwt_token = jwt.encode(payload, JWT_SECRET, JWT_ALGORITHM)
 
-	def test_user_authenticate_corrupted_token_failure(self):
-		payload = {
-			'exp': datetime.utcnow() + timedelta(seconds=models.JWT_EXP_DELTA_SECONDS)
-		}
-		jwt_token = jwt.encode(payload, models.JWT_SECRET, models.JWT_ALGORITHM)
+        with self.assertRaises(BadRequest) as context:
+            # Authenticate
+            User().authenticate(jwt_token)
 
-		with self.assertRaises(models.BadRequest) as context:
-			# Authenticate
-			models.User().authenticate(jwt_token)
+        self.assertEquals(context.exception.message, "Token is invalid")
 
-		self.assertEquals(context.exception.message, "Token is corrupted")
+    def test_user_authenticate_corrupted_token_failure(self):
+        payload = {
+            'exp': datetime.utcnow() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
+        }
+        jwt_token = jwt.encode(payload, JWT_SECRET, JWT_ALGORITHM)
 
-	def test_user_authenticate_unauthorized_failure(self):
-		payload = {
-			'user_id': "this-is-a-test-user-id",
-			'exp': datetime.utcnow() + timedelta(seconds=models.JWT_EXP_DELTA_SECONDS)
-		}
-		jwt_token = jwt.encode(payload, models.JWT_SECRET, models.JWT_ALGORITHM)
+        with self.assertRaises(BadRequest) as context:
+            # Authenticate
+            User().authenticate(jwt_token)
 
-		with self.assertRaises(models.Unauthorized) as context:
-			# Authenticate
-			models.User().authenticate(jwt_token)
+        self.assertEquals(context.exception.message, "Token is corrupted")
 
-		self.assertEquals(context.exception.message, "User is not authorized")
+    def test_user_authenticate_unauthorized_failure(self):
+        payload = {
+            'user_id': "this-is-a-test-user-id",
+            'exp': datetime.utcnow() + timedelta(seconds=JWT_EXP_DELTA_SECONDS)
+        }
+        jwt_token = jwt.encode(payload, JWT_SECRET, JWT_ALGORITHM)
 
+        with self.assertRaises(Unauthorized) as context:
+            # Authenticate
+            User().authenticate(jwt_token)
+
+        self.assertEquals(context.exception.message, "User is not authorized")
+
+class LoanTestCase(TestCase):
+
+    def test_loan_00_create_and_get_success(self):
+        # Create loan
+        loan = Loan(**test_loan)
+        loan.create()
+
+        test_loan['id'] = loan.id
+
+        # Fetch loan
+        db_loan = Loan().get(loan.id)
+
+        self.assertEqual(loan, db_loan)
+
+    def test_loan_get_failure(self):
+        with self.assertRaises(NotFound) as context:
+            Loan().get("this-is-a-test-loan-id")
+
+        self.assertEquals(context.exception.message, "Loan 'this-is-a-test-loan-id' not found")
+
+    def test_loan_create_failure(self):
+        with self.assertRaises(BadRequest) as context:
+            Loan().create()
+
+        self.assertEquals(context.exception.message, "Invalid loan record provided")
+
+    def test_calculate_installment_success(self):
+        loan = Loan(**test_loan)
+
+        self.assertEqual(loan.calculate_installment(), 85.61)
+
+class PaymentTestCase(TestCase):
+
+    def test_payment_00_create_success(self):
+        # Create loan
+        loan = Loan(**test_loan)
+        loan.create()
+
+        test_payment['loan_id'] = loan.id
+
+        # Create payment
+        payment = Payment(**test_payment)
+        payment.create()
+
+        test_payment['id'] = payment.id
+
+        # Fetch payment
+        db_payment = Payment.query.get(payment.id)
+
+        self.assertEqual(payment, db_payment)
+
+    def test_payment_create_past_date_failure(self):
+        # Copy payment
+        payment = test_payment.copy()
+        payment['date'] = "2017-06-01T21:56:00"
+
+        with self.assertRaises(BadRequest) as context:
+            # Create payment
+            Payment(**payment).create()
+
+        self.assertEquals(context.exception.message, "Payment cannot be executed prior to loan date")
+
+    def test_payment_create_past_date_failure(self):
+        # Copy payment
+        payment = test_payment.copy()
+        del payment['amount']
+
+        with self.assertRaises(BadRequest) as context:
+            # Create payment
+            Payment(**payment).create()
+
+        self.assertEquals(context.exception.message, "Invalid payment record provided")
+
+    def test_payment_list_success(self):
+        # Pre-fetch list
+        payments = Payment().list(test_payment['loan_id'])
+        self.assertEqual(len(payments), 1)
+
+        # Add a one month younger missed payment
+        new_payment = test_payment.copy()
+        new_payment['id'] = None
+        new_payment['payment'] = "missed"
+        new_payment['date'] = "2018-07-01T21:56:00"
+        Payment(**new_payment).create()
+
+        # List only made payments
+        payments = Payment().list(test_payment['loan_id'])
+        self.assertEqual(len(payments), 1)
+        self.assertNotIn(Payment(**new_payment), payments)
+
+        # List payments made until current month
+        payments = Payment().list(test_payment['loan_id'], until_date="2018-06-01T21:56:00")
+        self.assertEqual(len(payments), 1)
+        self.assertNotIn(Payment(**new_payment), payments)
+
+        # List all payments
+        payments = Payment().list(test_payment['loan_id'], only_made=False)
+        self.assertEqual(len(payments), 2)
 
 if __name__ == '__main__':
-	unittest.main()
+    unittest.main()
 
 
