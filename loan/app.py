@@ -101,7 +101,7 @@ def fetch_balance(loan_id):
         # Adjust outstanding balance
         balance = balance - payment.amount
 
-    return jsonify({"balance": balance}), 200
+    return jsonify({"balance": round(balance, 2)}), 200
 
 @app.errorhandler(Exception)
 def handle_error(error):
